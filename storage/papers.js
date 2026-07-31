@@ -92,6 +92,14 @@
     }
   }
 
+  async function setReviewGoal(paperId, goal) {
+    const map = await readAll();
+    if (map[paperId]) {
+      map[paperId].review_goal = goal;
+      await writeAll(map);
+    }
+  }
+
   async function deletePaper(paperId) {
     const map = await readAll();
     if (map[paperId]) {
@@ -108,6 +116,7 @@
     listPapers,
     getPaper,
     setProgress,
+    setReviewGoal,
     deletePaper,
   };
 })();

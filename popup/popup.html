@@ -13,6 +13,7 @@
 
     <main class="content">
       <button id="run-detect" class="primary" disabled>RUN DETECT</button>
+      <button id="read" class="secondary" disabled>READ</button>
 
       <section class="structure">
         <h2>Paper structure</h2>
@@ -26,6 +27,22 @@
     <footer class="footer">
       <p>Results are logged to the page console (F12 &gt; Console).</p>
     </footer>
+
+    <div class="modal-backdrop" id="question-modal" hidden>
+      <div class="modal">
+        <h2>Record your reading question</h2>
+        <p class="modal-hint">What do you want to ask about this paper?</p>
+        <textarea
+          id="question-input"
+          rows="3"
+          placeholder="e.g. What problem does this paper claim to solve?"
+        ></textarea>
+        <div class="modal-actions">
+          <button id="question-cancel" class="ghost">Cancel</button>
+          <button id="question-save" class="primary">Save</button>
+        </div>
+      </div>
+    </div>
 
     <script src="../storage/papers.js"></script>
     <script src="popup.js"></script>

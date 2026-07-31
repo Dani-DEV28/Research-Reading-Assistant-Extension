@@ -3,8 +3,16 @@
 
   const statusEl = document.getElementById('status');
   const runBtn = document.getElementById('run-detect');
+  const readBtn = document.getElementById('read');
   const structureList = document.getElementById('structure-list');
   const structureEmpty = document.getElementById('structure-empty');
+  const questionModal = document.getElementById('question-modal');
+  const questionInput = document.getElementById('question-input');
+  const questionSave = document.getElementById('question-save');
+  const questionCancel = document.getElementById('question-cancel');
+
+  let currentPaper = null;
+  let readMode = false;
 
   function truncate(text, max) {
     const value = String(text || '');
@@ -56,11 +64,16 @@
   }
 
   function renderStructure(paper) {
+    currentPaper = paper;
+    readMode = false;
+    readBtn.textContent = 'READ';
+
     const items = buildChecklistItems(paper);
     const progress = paper.progress || {};
     structureList.innerHTML = '';
     structureList.hidden = items.length === 0;
     structureEmpty.hidden = items.length > 0;
+    readBtn.disabled = items.length === 0;
 
     for (const item of items) {
       const li = document.createElement('li');
@@ -76,6 +89,7 @@
       checkbox.addEventListener('change', async (e) => {
         await window.PaperStorage.setProgress(paper.paper_id, item.key, e.target.checked);
         li.classList.toggle('tracked', e.target.checked);
+        if (readMode) applyReadFilter();
       });
 
       const body = document.createElement('span');
@@ -86,12 +100,28 @@
       heading.textContent = item.label;
 
       body.appendChild(heading);
-
       label.appendChild(checkbox);
       label.appendChild(body);
       li.appendChild(label);
       structureList.appendChild(li);
     }
+  }
+
+  function applyReadFilter() {
+    for (const li of structureList.querySelectorAll('.structure-item')) {
+      const checked = li.querySelector('.structure-check').checked;
+      li.hidden = readMode && !checked;
+    }
+  }
+
+  function openQuestionModal() {
+    questionInput.value = (currentPaper && currentPaper.review_goal) || '';
+    questionModal.hidden = false;
+    questionInput.focus();
+  }
+
+  function closeQuestionModal() {
+    questionModal.hidden = true;
   }
 
   async function getActiveTab() {
@@ -122,6 +152,10 @@
   }
 
   function showEmptyState() {
+    currentPaper = null;
+    readMode = false;
+    readBtn.textContent = 'READ';
+    readBtn.disabled = true;
     structureList.innerHTML = '';
     structureList.hidden = true;
     structureEmpty.hidden = false;
@@ -191,6 +225,47 @@
       runBtn.textContent = 'RUN DETECT';
       runBtn.disabled = false;
     }
+  });
+
+  readBtn.addEventListener('click', () => {
+    const items = Array.from(structureList.querySelectorAll('.structure-item'));
+    const tracked = items.filter(
+      (li) => li.querySelector('.structure-check').checked
+    );
+
+    if (!readMode && tracked.length === 0) {
+      setStatus('Track at least one item to start reading.', false);
+      return;
+    }
+
+    readMode = !readMode;
+    applyReadFilter();
+
+    if (readMode) {
+      readBtn.textContent = 'EXIT READ';
+      openQuestionModal();
+    } else {
+      readBtn.textContent = 'READ';
+      setStatus('Read mode off. All items shown.');
+    }
+  });
+
+  questionSave.addEventListener('click', async () => {
+    const goal = questionInput.value.trim();
+    if (currentPaper) {
+      await window.PaperStorage.setReviewGoal(currentPaper.paper_id, goal);
+    }
+    closeQuestionModal();
+    setStatus(
+      goal
+        ? 'Question saved. Review the tracked items and reflect on your question.'
+        : 'No question recorded. Reading the tracked items.'
+    );
+  });
+
+  questionCancel.addEventListener('click', () => {
+    closeQuestionModal();
+    setStatus('Reading the tracked items. You can record a question later.');
   });
 
   if (document.readyState === 'loading') {
