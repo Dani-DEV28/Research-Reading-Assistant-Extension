@@ -116,9 +116,13 @@ body {
   margin-bottom: 6px;
 }
 
-.structure-item.done .structure-heading {
-  text-decoration: line-through;
-  color: #7b8794;
+.structure-item.tracked .structure-label {
+  border-color: #1e3a5f;
+  background: #eef3f9;
+}
+
+.structure-item.tracked .structure-heading {
+  color: #1e3a5f;
 }
 
 .structure-label {

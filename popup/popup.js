@@ -75,7 +75,7 @@
       checkbox.checked = !!progress[item.key];
       checkbox.addEventListener('change', async (e) => {
         await window.PaperStorage.setProgress(paper.paper_id, item.key, e.target.checked);
-        li.classList.toggle('done', e.target.checked);
+        li.classList.toggle('tracked', e.target.checked);
       });
 
       const body = document.createElement('span');
