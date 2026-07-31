@@ -586,7 +586,10 @@ The **READ** button enters a focused reading session:
   another question; **Done** closes it. Saved questions are listed inside the modal and
   displayed in a "Review questions" section below the paper structure checklist. Each
   displayed question has a **-** button to remove it (`PaperStorage.removeReviewQuestion`).
-- Pressing **READ** again (now labeled **EXIT READ**) restores all items.
+- Pressing **READ** again (now labeled **EXIT READ**) restores all items and, if review
+  questions exist, opens an **answer modal** prompting the user to record their reflections
+  for each question. Answers are saved on the paper record as an `answers` map
+  (`PaperStorage.saveAnswers`).
 - Requires at least one tracked item; otherwise the popup prompts the user to track items first.
 
 ## Detection Cache
@@ -619,6 +622,9 @@ Storage schema:
       "review_questions": [
         "What problem does this paper claim to solve?"
       ],
+      "answers": {
+        "What problem does this paper claim to solve?": "The paper proposes..."
+      },
       "progress": {
         "abstract": true,
         "section_0": false,

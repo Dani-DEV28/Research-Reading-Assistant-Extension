@@ -118,6 +118,14 @@
     }
   }
 
+  async function saveAnswers(paperId, answers) {
+    const map = await readAll();
+    if (map[paperId]) {
+      map[paperId].answers = { ...(map[paperId].answers || {}), ...answers };
+      await writeAll(map);
+    }
+  }
+
   async function deletePaper(paperId) {
     const map = await readAll();
     if (map[paperId]) {
@@ -136,6 +144,7 @@
     setProgress,
     addReviewQuestion,
     removeReviewQuestion,
+    saveAnswers,
     deletePaper,
   };
 })();

@@ -14,9 +14,14 @@
   const questionList = document.getElementById('question-list');
   const questionMore = document.getElementById('question-more');
   const questionDone = document.getElementById('question-done');
+  const answerModal = document.getElementById('answer-modal');
+  const answerList = document.getElementById('answer-list');
+  const answerSave = document.getElementById('answer-save');
+  const answerCancel = document.getElementById('answer-cancel');
 
   let currentPaper = null;
   let readMode = false;
+  let answerFields = [];
 
   function truncate(text, max) {
     const value = String(text || '');
@@ -179,6 +184,42 @@
     questionModal.hidden = true;
   }
 
+  function openAnswerModal() {
+    const questions = (currentPaper && currentPaper.review_questions) || [];
+    if (questions.length === 0) return false;
+
+    const answers = (currentPaper && currentPaper.answers) || {};
+    answerFields = [];
+    answerList.innerHTML = '';
+
+    for (const question of questions) {
+      const li = document.createElement('li');
+      li.className = 'answer-item';
+
+      const label = document.createElement('span');
+      label.className = 'answer-question';
+      label.textContent = question;
+
+      const textarea = document.createElement('textarea');
+      textarea.rows = 2;
+      textarea.placeholder = 'Your reflection...';
+      textarea.value = answers[question] || '';
+
+      li.appendChild(label);
+      li.appendChild(textarea);
+      answerList.appendChild(li);
+      answerFields.push({ question, textarea });
+    }
+
+    answerModal.hidden = false;
+    if (answerFields[0]) answerFields[0].textarea.focus();
+    return true;
+  }
+
+  function closeAnswerModal() {
+    answerModal.hidden = true;
+  }
+
   async function saveCurrentQuestion() {
     if (!currentPaper) return false;
     const value = questionInput.value.trim();
@@ -314,7 +355,11 @@
       openQuestionModal();
     } else {
       readBtn.textContent = 'READ';
-      setStatus('Read mode off. All items shown.');
+      if (openAnswerModal()) {
+        setStatus('Reading complete. Answer your review questions.');
+      } else {
+        setStatus('Read mode off. All items shown.');
+      }
     }
   });
 
@@ -341,6 +386,31 @@
         ? 'Questions saved. Review the tracked items and reflect.'
         : 'No question recorded. Reading the tracked items.'
     );
+  });
+
+  answerSave.addEventListener('click', async () => {
+    if (!currentPaper) {
+      closeAnswerModal();
+      return;
+    }
+    const answers = {};
+    for (const { question, textarea } of answerFields) {
+      const value = textarea.value.trim();
+      if (value) answers[question] = value;
+    }
+    await window.PaperStorage.saveAnswers(currentPaper.paper_id, answers);
+    currentPaper.answers = { ...(currentPaper.answers || {}), ...answers };
+    closeAnswerModal();
+    setStatus(
+      Object.keys(answers).length > 0
+        ? 'Answers saved. Reading session complete.'
+        : 'No answers recorded. Reading session complete.'
+    );
+  });
+
+  answerCancel.addEventListener('click', () => {
+    closeAnswerModal();
+    setStatus('Read mode off. You can answer your questions later.');
   });
 
   if (document.readyState === 'loading') {
