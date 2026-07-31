@@ -8,6 +8,7 @@
   const structureEmpty = document.getElementById('structure-empty');
   const questionsList = document.getElementById('questions-list');
   const questionsEmpty = document.getElementById('questions-empty');
+  const addQuestionBtn = document.getElementById('add-question');
   const questionModal = document.getElementById('question-modal');
   const questionInput = document.getElementById('question-input');
   const questionList = document.getElementById('question-list');
@@ -68,13 +69,36 @@
 
   function renderQuestions() {
     const questions = (currentPaper && currentPaper.review_questions) || [];
+    addQuestionBtn.disabled = !currentPaper;
     questionsList.innerHTML = '';
     questionsList.hidden = questions.length === 0;
     questionsEmpty.hidden = questions.length > 0;
     for (const question of questions) {
       const li = document.createElement('li');
       li.className = 'question-item';
-      li.textContent = question;
+
+      const text = document.createElement('span');
+      text.className = 'question-text';
+      text.textContent = question;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'question-remove';
+      removeBtn.textContent = '-';
+      removeBtn.title = 'Remove question';
+      removeBtn.addEventListener('click', async () => {
+        await window.PaperStorage.removeReviewQuestion(
+          currentPaper.paper_id,
+          question
+        );
+        const idx = currentPaper.review_questions.indexOf(question);
+        if (idx !== -1) currentPaper.review_questions.splice(idx, 1);
+        renderQuestions();
+        renderQuestionList();
+      });
+
+      li.appendChild(text);
+      li.appendChild(removeBtn);
       questionsList.appendChild(li);
     }
   }
@@ -292,6 +316,10 @@
       readBtn.textContent = 'READ';
       setStatus('Read mode off. All items shown.');
     }
+  });
+
+  addQuestionBtn.addEventListener('click', () => {
+    openQuestionModal();
   });
 
   questionMore.addEventListener('click', async () => {

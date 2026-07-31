@@ -105,6 +105,19 @@
     }
   }
 
+  async function removeReviewQuestion(paperId, question) {
+    const map = await readAll();
+    if (map[paperId]) {
+      const list = map[paperId].review_questions || [];
+      const idx = list.indexOf(question);
+      if (idx !== -1) {
+        list.splice(idx, 1);
+        map[paperId].review_questions = list;
+        await writeAll(map);
+      }
+    }
+  }
+
   async function deletePaper(paperId) {
     const map = await readAll();
     if (map[paperId]) {
@@ -122,6 +135,7 @@
     getPaper,
     setProgress,
     addReviewQuestion,
+    removeReviewQuestion,
     deletePaper,
   };
 })();
