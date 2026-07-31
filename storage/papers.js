@@ -92,11 +92,16 @@
     }
   }
 
-  async function setReviewGoal(paperId, goal) {
+  async function addReviewQuestion(paperId, question) {
     const map = await readAll();
     if (map[paperId]) {
-      map[paperId].review_goal = goal;
-      await writeAll(map);
+      const list = map[paperId].review_questions || [];
+      const trimmed = String(question || '').trim();
+      if (trimmed && !list.includes(trimmed)) {
+        list.push(trimmed);
+        map[paperId].review_questions = list;
+        await writeAll(map);
+      }
     }
   }
 
@@ -116,7 +121,7 @@
     listPapers,
     getPaper,
     setProgress,
-    setReviewGoal,
+    addReviewQuestion,
     deletePaper,
   };
 })();

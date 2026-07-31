@@ -8,8 +8,9 @@
   const structureEmpty = document.getElementById('structure-empty');
   const questionModal = document.getElementById('question-modal');
   const questionInput = document.getElementById('question-input');
-  const questionSave = document.getElementById('question-save');
-  const questionCancel = document.getElementById('question-cancel');
+  const questionList = document.getElementById('question-list');
+  const questionMore = document.getElementById('question-more');
+  const questionDone = document.getElementById('question-done');
 
   let currentPaper = null;
   let readMode = false;
@@ -114,14 +115,39 @@
     }
   }
 
+  function renderQuestionList() {
+    const questions = (currentPaper && currentPaper.review_questions) || [];
+    questionList.innerHTML = '';
+    questionList.hidden = questions.length === 0;
+    for (const question of questions) {
+      const li = document.createElement('li');
+      li.className = 'question-item';
+      li.textContent = question;
+      questionList.appendChild(li);
+    }
+  }
+
   function openQuestionModal() {
-    questionInput.value = (currentPaper && currentPaper.review_goal) || '';
+    questionInput.value = '';
+    renderQuestionList();
     questionModal.hidden = false;
     questionInput.focus();
   }
 
   function closeQuestionModal() {
     questionModal.hidden = true;
+  }
+
+  async function saveCurrentQuestion() {
+    if (!currentPaper) return false;
+    const value = questionInput.value.trim();
+    if (!value) return false;
+    await window.PaperStorage.addReviewQuestion(currentPaper.paper_id, value);
+    currentPaper.review_questions = currentPaper.review_questions || [];
+    if (!currentPaper.review_questions.includes(value)) {
+      currentPaper.review_questions.push(value);
+    }
+    return true;
   }
 
   async function getActiveTab() {
@@ -250,22 +276,23 @@
     }
   });
 
-  questionSave.addEventListener('click', async () => {
-    const goal = questionInput.value.trim();
-    if (currentPaper) {
-      await window.PaperStorage.setReviewGoal(currentPaper.paper_id, goal);
+  questionMore.addEventListener('click', async () => {
+    const saved = await saveCurrentQuestion();
+    if (saved) {
+      questionInput.value = '';
+      renderQuestionList();
+      questionInput.focus();
     }
-    closeQuestionModal();
-    setStatus(
-      goal
-        ? 'Question saved. Review the tracked items and reflect on your question.'
-        : 'No question recorded. Reading the tracked items.'
-    );
   });
 
-  questionCancel.addEventListener('click', () => {
+  questionDone.addEventListener('click', async () => {
+    const saved = await saveCurrentQuestion();
     closeQuestionModal();
-    setStatus('Reading the tracked items. You can record a question later.');
+    setStatus(
+      saved
+        ? 'Questions saved. Review the tracked items and reflect.'
+        : 'No question recorded. Reading the tracked items.'
+    );
   });
 
   if (document.readyState === 'loading') {

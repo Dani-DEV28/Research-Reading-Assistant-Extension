@@ -579,10 +579,11 @@ Checklist item keys: `abstract`, `section_<i>`, `figure_<i>`, `methods`, `conclu
 The **READ** button enters a focused reading session:
 
 - **Hides untracked items** - only checked (tracked) checklist items remain visible.
-- **Prompts for a reading question** - a modal opens so the user can record the question
+- **Prompts for reading questions** - a modal opens so the user can record the questions
   they want to answer from this paper.
-- The question is saved on the paper record as `review_goal` (via `PaperStorage.setReviewGoal`)
-  and pre-filled the next time READ is pressed.
+- Questions are saved on the paper record as a `review_questions` array (via
+  `PaperStorage.addReviewQuestion`). **Add more question** keeps the modal open to append
+  another question; **Done** closes it. Saved questions are listed inside the modal.
 - Pressing **READ** again (now labeled **EXIT READ**) restores all items.
 - Requires at least one tracked item; otherwise the popup prompts the user to track items first.
 
@@ -613,7 +614,9 @@ Storage schema:
       "methods": {},
       "conclusion": {},
       "detected_at": 1753920000000,
-      "review_goal": "What problem does this paper claim to solve?",
+      "review_questions": [
+        "What problem does this paper claim to solve?"
+      ],
       "progress": {
         "abstract": true,
         "section_0": false,

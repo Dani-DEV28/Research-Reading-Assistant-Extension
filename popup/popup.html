@@ -30,16 +30,17 @@
 
     <div class="modal-backdrop" id="question-modal" hidden>
       <div class="modal">
-        <h2>Record your reading question</h2>
+        <h2>Record your reading questions</h2>
         <p class="modal-hint">What do you want to ask about this paper?</p>
         <textarea
           id="question-input"
           rows="3"
           placeholder="e.g. What problem does this paper claim to solve?"
         ></textarea>
+        <ul id="question-list" class="question-list" hidden></ul>
         <div class="modal-actions">
-          <button id="question-cancel" class="ghost">Cancel</button>
-          <button id="question-save" class="primary">Save</button>
+          <button id="question-more" class="ghost">Add more question</button>
+          <button id="question-done" class="primary">Done</button>
         </div>
       </div>
     </div>
