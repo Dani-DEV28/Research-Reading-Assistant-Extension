@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Research Reading Assistant</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <h1>Research Reading Assistant</h1>
+      <p class="status" id="status">Checking page...</p>
+    </header>
+
+    <main class="content">
+      <button id="run-detect" class="primary" disabled>RUN DETECT</button>
+
+      <section class="result" id="result" hidden>
+        <h2>Detection result</h2>
+        <pre id="result-output"></pre>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Results are logged to the page console (F12 &gt; Console).</p>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

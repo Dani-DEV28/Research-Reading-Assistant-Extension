@@ -510,3 +510,62 @@ Remember
 
 The user's questions drive the experience. AI supports the workflow by improving structure and organization, while the user's own reasoning remains the source of understanding.
 
+---
+
+# 11. MVP Phase 1 Implementation
+
+## Current File Structure
+
+```
+Research-Read-Assistant-ext/
+│
+├── manifest.json                 Manifest V3 definition
+│
+├── background/
+│   └── service-worker.js         Initializes default preferences on install
+│
+├── content/
+│   ├── detector.js               DOM parser + section detector (title, abstract,
+│   │                             sections, figures, methods, conclusion)
+│   └── content.js                Content script: handles popup messages
+│
+├── popup/
+│   ├── popup.html                Popup UI with RUN DETECT button
+│   ├── popup.css                 Popup styling
+│   └── popup.js                  Popup logic: checks page, triggers detection
+│
+└── README.md
+```
+
+## Loading the Extension
+
+1. Open `chrome://extensions`.
+2. Enable "Developer mode" (top-right).
+3. Click "Load unpacked" and select this project folder.
+4. Pin the extension from the toolbar.
+
+## Using "RUN DETECT"
+
+1. Open a research paper page (arXiv HTML, ar5iv, or any page with structured HTML).
+2. Click the extension icon to open the popup.
+3. Click **RUN DETECT**.
+4. Open the page console (F12 > Console) to view the detected output:
+   - Title
+   - Abstract
+   - Sections (headings + snippets)
+   - Figures (captions, alt text, source URLs)
+   - Methods (detected by keyword-matching section headings)
+   - Conclusion (detected by keyword-matching section headings)
+5. The popup also shows a compact summary of the detection result.
+
+## Supported Sources
+
+- arXiv HTML papers (`arxiv.org`, `ar5iv.org`)
+- Academic sites exposing `citation_title` / `citation_abstract` meta tags
+- Generic structured HTML with `article`, `section`, and heading elements
+
+## Future Phases
+
+Phase 2 (Checklist System), Phase 3 (Reading Tracker), Phase 4 (AI Validation Layer),
+and Phase 5 (Research Memory) build on this foundation as described in the roadmap above.
+
