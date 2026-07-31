@@ -583,7 +583,8 @@ The **READ** button enters a focused reading session:
   they want to answer from this paper.
 - Questions are saved on the paper record as a `review_questions` array (via
   `PaperStorage.addReviewQuestion`). **Add more question** keeps the modal open to append
-  another question; **Done** closes it. Saved questions are listed inside the modal.
+  another question; **Done** closes it. Saved questions are listed inside the modal and
+  displayed in a "Review questions" section below the paper structure checklist.
 - Pressing **READ** again (now labeled **EXIT READ**) restores all items.
 - Requires at least one tracked item; otherwise the popup prompts the user to track items first.
 

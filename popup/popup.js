@@ -6,6 +6,8 @@
   const readBtn = document.getElementById('read');
   const structureList = document.getElementById('structure-list');
   const structureEmpty = document.getElementById('structure-empty');
+  const questionsList = document.getElementById('questions-list');
+  const questionsEmpty = document.getElementById('questions-empty');
   const questionModal = document.getElementById('question-modal');
   const questionInput = document.getElementById('question-input');
   const questionList = document.getElementById('question-list');
@@ -64,6 +66,19 @@
     return items;
   }
 
+  function renderQuestions() {
+    const questions = (currentPaper && currentPaper.review_questions) || [];
+    questionsList.innerHTML = '';
+    questionsList.hidden = questions.length === 0;
+    questionsEmpty.hidden = questions.length > 0;
+    for (const question of questions) {
+      const li = document.createElement('li');
+      li.className = 'question-item';
+      li.textContent = question;
+      questionsList.appendChild(li);
+    }
+  }
+
   function renderStructure(paper) {
     currentPaper = paper;
     readMode = false;
@@ -106,6 +121,8 @@
       li.appendChild(label);
       structureList.appendChild(li);
     }
+
+    renderQuestions();
   }
 
   function applyReadFilter() {
@@ -185,6 +202,7 @@
     structureList.innerHTML = '';
     structureList.hidden = true;
     structureEmpty.hidden = false;
+    renderQuestions();
   }
 
   async function loadFromCache(tab) {
@@ -281,6 +299,7 @@
     if (saved) {
       questionInput.value = '';
       renderQuestionList();
+      renderQuestions();
       questionInput.focus();
     }
   });
@@ -288,6 +307,7 @@
   questionDone.addEventListener('click', async () => {
     const saved = await saveCurrentQuestion();
     closeQuestionModal();
+    renderQuestions();
     setStatus(
       saved
         ? 'Questions saved. Review the tracked items and reflect.'
