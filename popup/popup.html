@@ -14,9 +14,12 @@
     <main class="content">
       <button id="run-detect" class="primary" disabled>RUN DETECT</button>
 
-      <section class="result" id="result" hidden>
-        <h2>Detection result</h2>
-        <pre id="result-output"></pre>
+      <section class="structure">
+        <h2>Paper structure</h2>
+        <p id="structure-empty" class="empty">
+          No cached data for this page yet. Click RUN DETECT to extract it.
+        </p>
+        <ul id="structure-list" class="structure-list" hidden></ul>
       </section>
     </main>
 
@@ -24,6 +27,7 @@
       <p>Results are logged to the page console (F12 &gt; Console).</p>
     </footer>
 
+    <script src="../storage/papers.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

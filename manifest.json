@@ -15,7 +15,7 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "js": ["content/detector.js", "content/content.js"],
+      "js": ["storage/papers.js", "content/detector.js", "content/content.js"],
       "run_at": "document_idle"
     }
   ]

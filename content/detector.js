@@ -190,11 +190,16 @@
   function detect() {
     const source = detectSource();
     const sections = collectSections(source);
+    const url = window.location.href;
 
     return {
       detected: true,
       source,
-      url: window.location.href,
+      url,
+      paper_id: window.PaperStorage
+        ? window.PaperStorage.paperIdForUrl(url)
+        : url,
+      detected_at: Date.now(),
       title: detectTitle(source),
       abstract: detectAbstract(source),
       sections: sections.map((s) => ({

@@ -3,8 +3,96 @@
 
   const statusEl = document.getElementById('status');
   const runBtn = document.getElementById('run-detect');
-  const resultSection = document.getElementById('result');
-  const resultOutput = document.getElementById('result-output');
+  const structureList = document.getElementById('structure-list');
+  const structureEmpty = document.getElementById('structure-empty');
+
+  function truncate(text, max) {
+    const value = String(text || '');
+    return value.length <= max ? value : value.slice(0, max) + '...';
+  }
+
+  function buildChecklistItems(paper) {
+    const items = [];
+
+    if (paper.abstract) {
+      items.push({ key: 'abstract', label: 'Abstract', text: paper.abstract });
+    }
+
+    (paper.sections || []).forEach((section, i) => {
+      items.push({
+        key: 'section_' + i,
+        label: section.heading || 'Section ' + (i + 1),
+        text: section.snippet || '',
+        meta: section.id ? '#' + section.id : '',
+      });
+    });
+
+    (paper.figures || []).forEach((figure, i) => {
+      items.push({
+        key: 'figure_' + i,
+        label: 'Figure ' + figure.index,
+        text: figure.caption || figure.alt || '',
+        meta: figure.src || '',
+      });
+    });
+
+    if (paper.methods) {
+      items.push({
+        key: 'methods',
+        label: 'Methods' + (paper.methods.heading ? ' - ' + paper.methods.heading : ''),
+        text: paper.methods.text || '',
+      });
+    }
+
+    if (paper.conclusion) {
+      items.push({
+        key: 'conclusion',
+        label: 'Conclusion' + (paper.conclusion.heading ? ' - ' + paper.conclusion.heading : ''),
+        text: paper.conclusion.text || '',
+      });
+    }
+
+    return items;
+  }
+
+  function renderStructure(paper) {
+    const items = buildChecklistItems(paper);
+    const progress = paper.progress || {};
+    structureList.innerHTML = '';
+    structureList.hidden = items.length === 0;
+    structureEmpty.hidden = items.length > 0;
+
+    for (const item of items) {
+      const li = document.createElement('li');
+      li.className = 'structure-item';
+
+      const label = document.createElement('label');
+      label.className = 'structure-label';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'structure-check';
+      checkbox.checked = !!progress[item.key];
+      checkbox.addEventListener('change', async (e) => {
+        await window.PaperStorage.setProgress(paper.paper_id, item.key, e.target.checked);
+        li.classList.toggle('done', e.target.checked);
+      });
+
+      const body = document.createElement('span');
+      body.className = 'structure-body';
+
+      const heading = document.createElement('span');
+      heading.className = 'structure-heading';
+      heading.textContent = item.label;
+
+      body.appendChild(heading);
+
+      label.appendChild(checkbox);
+      label.appendChild(body);
+      li.appendChild(label);
+      structureList.appendChild(li);
+    }
+  }
 
   async function getActiveTab() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -33,22 +121,23 @@
     statusEl.style.color = ok === true ? '#7dd3a0' : ok === false ? '#ffb3a7' : '';
   }
 
-  function renderResult(data) {
-    const summary = {
-      source: data.source,
-      title: data.title || '(not found)',
-      abstract: data.abstract
-        ? data.abstract.length > 220
-          ? data.abstract.slice(0, 220) + '...'
-          : data.abstract
-        : '(not found)',
-      sections: data.sections.map((s) => s.heading),
-      figures: data.figures.map((f) => f.caption || f.alt || f.src || `figure ${f.index}`),
-      methods: data.methods ? { heading: data.methods.heading, text: data.methods.text.slice(0, 220) + (data.methods.text.length > 220 ? '...' : '') } : null,
-      conclusion: data.conclusion ? { heading: data.conclusion.heading, text: data.conclusion.text.slice(0, 220) + (data.conclusion.text.length > 220 ? '...' : '') } : null,
-    };
-    resultOutput.textContent = JSON.stringify(summary, null, 2);
-    resultSection.hidden = false;
+  function showEmptyState() {
+    structureList.innerHTML = '';
+    structureList.hidden = true;
+    structureEmpty.hidden = false;
+  }
+
+  async function loadFromCache(tab) {
+    const paperId = window.PaperStorage.paperIdForUrl(tab.url);
+    const cached = await window.PaperStorage.getPaper(paperId);
+    if (cached) {
+      renderStructure(cached);
+      setStatus(
+        'Loaded from cache (detected ' + new Date(cached.detected_at).toLocaleString() + ').'
+      );
+      return true;
+    }
+    return false;
   }
 
   async function init() {
@@ -57,20 +146,25 @@
     if (!tab || !/^https?:/i.test(tab.url || '')) {
       setStatus('Not supported. Open a paper page (HTTP/HTTPS) and retry.', false);
       runBtn.disabled = true;
+      showEmptyState();
       return;
     }
+
+    const cachedLoaded = await loadFromCache(tab);
 
     const ping = await pingTab(tab);
     if (!ping) {
-      setStatus('Content script not available. Reload the page and retry.', false);
-      runBtn.disabled = true;
+      if (!cachedLoaded) {
+        setStatus('Content script not available. Reload the page and retry.', false);
+      }
+      runBtn.disabled = false;
       return;
     }
 
-    if (!ping.isPaper) {
+    if (!ping.isPaper && !cachedLoaded) {
       setStatus('No research paper detected on this page. Detection may still run.', true);
-    } else {
-      setStatus('Research paper detected on this page.');
+    } else if (!cachedLoaded) {
+      setStatus('Research paper detected on this page. Run detect to build the checklist.');
     }
     runBtn.disabled = false;
   }
@@ -78,7 +172,6 @@
   runBtn.addEventListener('click', async () => {
     runBtn.disabled = true;
     runBtn.textContent = 'DETECTING...';
-    resultSection.hidden = true;
     setStatus('Detecting paper structure...');
 
     try {
@@ -86,8 +179,9 @@
       const res = await sendMessage(tab.id, { type: 'DETECT_PAPER' });
       if (res && res.ok) {
         console.log('[Research Reading Assistant] Detection result:', res.data);
-        renderResult(res.data);
-        setStatus('Detection complete. See page console (F12) for full output.');
+        const saved = await window.PaperStorage.savePaper(res.data);
+        renderStructure(saved);
+        setStatus('Detection complete. Cached for review. See page console (F12) for full output.');
       } else {
         setStatus('Detection returned no data.', false);
       }

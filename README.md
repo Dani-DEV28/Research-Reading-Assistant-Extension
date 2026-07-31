@@ -530,9 +530,12 @@ Research-Read-Assistant-ext/
 │   └── content.js                Content script: handles popup messages
 │
 ├── popup/
-│   ├── popup.html                Popup UI with RUN DETECT button
+│   ├── popup.html                Popup UI with RUN DETECT button + structure checklist
 │   ├── popup.css                 Popup styling
-│   └── popup.js                  Popup logic: checks page, triggers detection
+│   └── popup.js                  Popup logic: cache lookup, detection, checklist toggles
+│
+├── storage/
+│   └── papers.js                 PaperStorage cache module (save, read, progress, evict)
 │
 └── README.md
 ```
@@ -556,7 +559,62 @@ Research-Read-Assistant-ext/
    - Figures (captions, alt text, source URLs)
    - Methods (detected by keyword-matching section headings)
    - Conclusion (detected by keyword-matching section headings)
-5. The popup also shows a compact summary of the detection result.
+
+## Structure Checklist
+
+When the popup opens on a page whose URL is already cached, the paper's structure is
+loaded from the cache and rendered as a checkable checklist:
+
+- One item per extracted part: Abstract, each Section, each Figure, Methods, Conclusion.
+- Checking an item persists immediately via `PaperStorage.setProgress`.
+- Re-opening the popup (or re-detecting the same paper) keeps the checkmarks.
+- Unrecognized pages show an empty state prompting **RUN DETECT**.
+- RUN DETECT stays enabled even when cached data is loaded, so the user can re-extract
+  and overwrite the cache entry (existing checkmarks are preserved).
+
+Checklist item keys: `abstract`, `section_<i>`, `figure_<i>`, `methods`, `conclusion`.
+
+## Detection Cache
+
+Detected papers are cached in `chrome.storage.local` under the `papers` key.
+
+Cache rules:
+
+- A paper is cached only when **RUN DETECT** is clicked.
+- Entries expire **7 days** after detection.
+- The cache keeps at most **10 papers** (oldest detected papers are evicted first).
+- Cache reads/writes go through `storage/papers.js` (`PaperStorage`).
+
+Storage schema:
+
+```json
+{
+  "papers": {
+    "arxiv_2401.00001": {
+      "paper_id": "arxiv_2401.00001",
+      "source": "arxiv",
+      "url": "https://arxiv.org/abs/2401.00001",
+      "title": "...",
+      "abstract": "...",
+      "sections": [...],
+      "figures": [...],
+      "methods": {},
+      "conclusion": {},
+      "detected_at": 1753920000000,
+      "progress": {
+        "abstract": true,
+        "section_0": false,
+        "figure_0": true,
+        "methods": false,
+        "conclusion": false
+      }
+    }
+  }
+}
+```
+
+Paper IDs are derived from the URL: `arxiv.org/abs|pdf/<id>` becomes `arxiv_<id>`;
+any other page becomes `page_` + a stable hash of the URL.
 
 ## Supported Sources
 
