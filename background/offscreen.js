@@ -37,15 +37,28 @@ function pageTextFromItems(items) {
   return lines.filter(Boolean).join('\n');
 }
 
-async function extractPdf(data, url) {
+async function fetchPdfBytes(url) {
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (err) {
+    if (/^file:/i.test(url)) {
+      throw new Error(
+        'Cannot load the local file. Enable "Allow access to file URLs" for this extension in chrome://extensions.'
+      );
+    }
+    throw new Error('Failed to fetch the PDF from the page.');
+  }
+  if (!res.ok) {
+    throw new Error('Failed to fetch PDF (HTTP ' + res.status + ').');
+  }
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+async function extractPdf(url) {
   let task = null;
   try {
-    const bytes =
-      data instanceof Uint8Array
-        ? data
-        : data && data.buffer instanceof ArrayBuffer
-          ? new Uint8Array(data.buffer, data.byteOffset || 0, data.byteLength)
-          : new Uint8Array(data);
+    const bytes = await fetchPdfBytes(url);
     task = pdfjsLib.getDocument({ data: bytes });
     const doc = await task.promise;
     const pages = [];
@@ -84,7 +97,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   busy = true;
-  extractPdf(message.data, message.url).then((result) => {
+  extractPdf(message.url).then((result) => {
     busy = false;
     sendResponse(result);
   });

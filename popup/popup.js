@@ -290,16 +290,10 @@
   }
 
   async function extractPdfFromTab(tab) {
-    const res = await fetch(tab.url);
-    if (!res.ok) {
-      throw new Error('Failed to fetch PDF (HTTP ' + res.status + ').');
-    }
-    const data = new Uint8Array(await res.arrayBuffer());
     await ensureOffscreen();
     const result = await sendToOffscreen({
       type: 'EXTRACT_PDF',
       url: tab.url,
-      data,
     });
     if (!result || !result.ok) {
       throw new Error((result && result.error) || 'PDF extraction failed.');
@@ -370,7 +364,10 @@
   async function init() {
     const tab = await getActiveTab();
 
-    if (!tab || !/^https?:/i.test(tab.url || '')) {
+    const schemeOk =
+      /^https?:/i.test(tab.url || '') ||
+      (/^file:/i.test(tab.url || '') && isPdfUrl(tab.url));
+    if (!tab || !schemeOk) {
       setStatus('Not supported. Open a paper page (HTTP/HTTPS) and retry.', false);
       runBtn.disabled = true;
       showEmptyState();
