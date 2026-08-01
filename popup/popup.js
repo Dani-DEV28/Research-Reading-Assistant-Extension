@@ -259,6 +259,90 @@
     statusEl.style.color = ok === true ? '#7dd3a0' : ok === false ? '#ffb3a7' : '';
   }
 
+  function isPdfUrl(url) {
+    if (/\.pdf(?:$|[?#])/i.test(url || '')) return true;
+    return /arxiv\.org\/pdf\//i.test(url || '');
+  }
+
+  async function ensureOffscreen() {
+    try {
+      if (await chrome.offscreen.hasDocument()) return;
+    } catch (err) {
+      /* fall through to create */
+    }
+    await chrome.offscreen.createDocument({
+      url: 'background/offscreen.html',
+      reasons: ['WORKERS'],
+      justification: 'Parse PDF documents with pdf.js to extract paper structure.',
+    });
+  }
+
+  async function sendToOffscreen(message, attempt = 0) {
+    try {
+      return await chrome.runtime.sendMessage(message);
+    } catch (err) {
+      if (attempt < 3) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return sendToOffscreen(message, attempt + 1);
+      }
+      throw err;
+    }
+  }
+
+  async function extractPdfFromTab(tab) {
+    const res = await fetch(tab.url);
+    if (!res.ok) {
+      throw new Error('Failed to fetch PDF (HTTP ' + res.status + ').');
+    }
+    const data = await res.arrayBuffer();
+    await ensureOffscreen();
+    const result = await sendToOffscreen({
+      type: 'EXTRACT_PDF',
+      url: tab.url,
+      data,
+    });
+    if (!result || !result.ok) {
+      throw new Error((result && result.error) || 'PDF extraction failed.');
+    }
+    const paper = window.PaperDetector.fromText(result.pages, { url: tab.url });
+    window.PaperDetector.logToConsole(paper);
+    return paper;
+  }
+
+  async function tryFetchPdf(tab) {
+    let probe;
+    try {
+      probe = await fetch(tab.url, { headers: { Range: 'bytes=0-0' } });
+      const type = (probe.headers.get('content-type') || '').toLowerCase();
+      if (!type.includes('application/pdf')) return null;
+    } catch (err) {
+      return null;
+    }
+    return await extractPdfFromTab(tab);
+  }
+
+  async function detectCurrentTab(tab) {
+    if (isPdfUrl(tab.url)) {
+      return await extractPdfFromTab(tab);
+    }
+
+    try {
+      const res = await sendMessage(tab.id, { type: 'DETECT_PAPER' });
+      if (res && res.ok && res.data) return res.data;
+      if (res && res.ok === false && res.error) {
+        const pdf = await tryFetchPdf(tab);
+        if (pdf) return pdf;
+        throw new Error(res.error);
+      }
+    } catch (err) {
+      const pdf = await tryFetchPdf(tab);
+      if (pdf) return pdf;
+      throw err;
+    }
+
+    return null;
+  }
+
   function showEmptyState() {
     currentPaper = null;
     readMode = false;
@@ -293,7 +377,18 @@
       return;
     }
 
+    const isPdf = isPdfUrl(tab.url);
     const cachedLoaded = await loadFromCache(tab);
+
+    if (isPdf) {
+      runBtn.disabled = false;
+      if (cachedLoaded) {
+        setStatus('PDF loaded from cache. Re-run detect to re-extract text.');
+      } else {
+        setStatus('PDF detected on this page. Run detect to build the checklist.');
+      }
+      return;
+    }
 
     const ping = await pingTab(tab);
     if (!ping) {
@@ -319,15 +414,15 @@
 
     try {
       const tab = await getActiveTab();
-      const res = await sendMessage(tab.id, { type: 'DETECT_PAPER' });
-      if (res && res.ok) {
-        console.log('[Research Reading Assistant] Detection result:', res.data);
-        const saved = await window.PaperStorage.savePaper(res.data);
-        renderStructure(saved);
-        setStatus('Detection complete. Cached for review. See page console (F12) for full output.');
-      } else {
-        setStatus('Detection returned no data.', false);
+      const result = await detectCurrentTab(tab);
+      if (!result) {
+        setStatus('No paper or PDF detected on this page.', false);
+        return;
       }
+      console.log('[Research Reading Assistant] Detection result:', result);
+      const saved = await window.PaperStorage.savePaper(result);
+      renderStructure(saved);
+      setStatus('Detection complete. Cached for review. See page console (F12) for full output.');
     } catch (err) {
       setStatus('Detection failed: ' + (err.message || 'unexpected error'), false);
     } finally {

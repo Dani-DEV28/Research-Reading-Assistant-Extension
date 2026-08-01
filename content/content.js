@@ -2,6 +2,8 @@
   'use strict';
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (!sender.tab) return;
+
     switch (message.type) {
       case 'PING':
         sendResponse({

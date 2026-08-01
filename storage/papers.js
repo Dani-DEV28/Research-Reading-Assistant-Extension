@@ -17,6 +17,7 @@
   function paperIdForUrl(url) {
     const match = url.match(/arxiv\.org\/(?:abs|pdf)\/([a-z0-9.]+)/i);
     if (match) return 'arxiv_' + match[1];
+    if (/\.pdf(?:$|[?#])/i.test(url)) return 'pdf_' + fnv1a(url);
     return 'page_' + fnv1a(url);
   }
 

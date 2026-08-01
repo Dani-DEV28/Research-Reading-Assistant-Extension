@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Detect and extract research paper structure (title, abstract, sections, figures, methods, conclusion) from web pages.",
   "minimum_chrome_version": "116",
-  "permissions": ["activeTab", "storage"],
+  "permissions": ["activeTab", "storage", "offscreen"],
   "background": {
     "service_worker": "background/service-worker.js"
   },

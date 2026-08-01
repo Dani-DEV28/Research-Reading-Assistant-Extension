@@ -522,20 +522,28 @@ Research-Read-Assistant-ext/
 ├── manifest.json                 Manifest V3 definition
 │
 ├── background/
-│   └── service-worker.js         Initializes default preferences on install
+│   ├── service-worker.js         Initializes default preferences on install
+│   ├── offscreen.html            Offscreen document page (pdf.js runner)
+│   └── offscreen.js              Offscreen logic: fetch + parse PDF with pdf.js
 │
 ├── content/
 │   ├── detector.js               DOM parser + section detector (title, abstract,
-│   │                             sections, figures, methods, conclusion)
+│   │                             sections, figures, methods, conclusion) plus
+│   │                             fromText() for PDF-extracted text
 │   └── content.js                Content script: handles popup messages
 │
 ├── popup/
 │   ├── popup.html                Popup UI with RUN DETECT button + structure checklist
 │   ├── popup.css                 Popup styling
-│   └── popup.js                  Popup logic: cache lookup, detection, checklist toggles
+│   └── popup.js                  Popup logic: cache lookup, detection, checklist toggles,
+│                                 PDF tab detection and pdf.js extraction orchestration
 │
 ├── storage/
 │   └── papers.js                 PaperStorage cache module (save, read, progress, evict)
+│
+├── lib/
+│   ├── pdf.min.mjs               pdfjs-dist legacy build (ESM)
+│   └── pdf.worker.min.mjs        pdf.js web worker (ESM)
 │
 └── README.md
 ```
@@ -639,6 +647,33 @@ Storage schema:
 
 Paper IDs are derived from the URL: `arxiv.org/abs|pdf/<id>` becomes `arxiv_<id>`;
 any other page becomes `page_` + a stable hash of the URL.
+
+## PDF Read Feature
+
+The extension also reads **top-level PDF papers** (any site, e.g. `arxiv.org/pdf/...`,
+journal PDFs). Chrome's built-in PDF viewer does not run content scripts, so PDFs are
+handled entirely from the popup:
+
+1. **Auto-detect** - when the popup opens on a PDF tab, the status bar shows
+   "PDF detected" and RUN DETECT is enabled. Detection is a URL check only; no PDF
+   bytes are downloaded until the user clicks.
+2. **RUN DETECT** - the popup fetches the PDF bytes (via the existing `activeTab`
+   permission), sends them to an offscreen document, and parses them with pdf.js.
+3. **Extraction** - per-page text is reconstructed from pdf.js text items (line breaks
+   preserved from item positions) and fed to `PaperDetector.fromText()`, which reuses
+   the same structure heuristics (title, abstract, numbered/ALL-CAPS/keyword headings,
+   `Figure N:` captions, methods, conclusion).
+4. **Reuse** - the result is saved through the same `PaperStorage` cache and rendered in
+   the exact same checklist / READ / questions / answers flow as HTML papers.
+
+Notes:
+
+- Any page that fails HTML detection (content script missing or not a paper) is probed
+  for `application/pdf` as a fallback, so PDF servers without a `.pdf` URL are also caught.
+- Non-arxiv PDFs are cached under `pdf_<hash>` IDs; arxiv PDF and HTML pages share the
+  same `arxiv_<id>` cache entry.
+- Scanned/image-only PDFs (no embedded text) and password-protected PDFs show a
+  "detection failed" status. OCR is out of scope.
 
 ## Supported Sources
 

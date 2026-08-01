@@ -37,7 +37,8 @@
   ];
 
   const CONCLUSION_PATTERNS = [
-    { pattern: /\bconclusion\b/i, label: 'conclusion' },
+    { pattern: /\bconclu\w*\b/i, label: 'conclusion' },
+    { pattern: /\bconclud\w*\b/i, label: 'conclusion' },
     { pattern: /\bdiscussion\b/i, label: 'discussion' },
     { pattern: /\bsummary\b/i, label: 'summary' },
     { pattern: /\bfuture work\b/i, label: 'future work' },
@@ -214,6 +215,194 @@
     };
   }
 
+  const BLOCKLIST_PATTERNS = [
+    /^\s*\d+\s*$/, // bare page numbers
+    /^arxiv:/i,
+    /^\S+@\S+$/, // email
+    /^(doi|http|https):/i,
+    /^(submitted|received|accepted|published|available|last updated|version)\b/i,
+    /^\d+\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+\d{4}\b/i,
+  ];
+
+  const KEYWORD_HEADINGS = [
+    /^(abstract|introduction|background|related work|methods?|methodology|approach|proposed (method|approach|model)|experiments?|experimental setup|evaluation|results?|discussion|conclusion|conclusions?|future work|references|acknowledgements?)\b[:.]?\s*$/i,
+  ];
+
+  function isJunkLine(line) {
+    return BLOCKLIST_PATTERNS.some((p) => p.test(line));
+  }
+
+  function isLikelyHeading(line, title) {
+    const len = line.length;
+    if (len < 3 || len > 150) return false;
+    if (title && line === title) return false;
+    if (/^\s*(figure|fig\.?)\s*\d+/i.test(line)) return false;
+    if (isJunkLine(line)) return false;
+
+    const alpha = (line.replace(/[^A-Za-z]/g, '') || '').length;
+    if (alpha < 3) return false;
+
+    if (/^\s*\d+(\.\d+)*[\.\)\-–]?\s+[A-Z]/.test(line)) {
+      if (!line.endsWith('.') || !/[a-z]/.test(line.slice(1))) return true;
+    }
+    if (/^\s*[IVXLCDM]+\.?\s+[A-Z]/.test(line)) return true;
+    if (/^[A-Z][A-Z0-9\s&\-/:]+$/.test(line)) return true;
+    if (KEYWORD_HEADINGS.some((p) => p.test(line))) return true;
+    return false;
+  }
+
+  function headingLevel(line) {
+    if (/^\s*[IVXLCDM]+\.?\s+[A-Z]/.test(line)) return 3;
+    return 2;
+  }
+
+  function cleanHeading(line) {
+    let heading = line.replace(/^\s*\d+(\.\d+)*[\.\)\-–]?\s*/, '');
+    heading = heading.replace(/^\s*[IVXLCDM]+\.?\s+/, '');
+    heading = heading.replace(/^\s*:\s*/, '');
+    return heading.trim();
+  }
+
+  function textLines(pages) {
+    const lines = [];
+    for (const page of pages || []) {
+      for (const raw of String(page.text || '').split('\n')) {
+        const line = raw.trim();
+        if (line) lines.push(line);
+      }
+    }
+    return lines;
+  }
+
+  function isAuthorLike(line) {
+    if (line.length < 3 || line.length > 20) return false;
+    return /^[A-Z][A-Za-z'\-]*(?:\s+[A-Z][A-Za-z'\-]*){1,3}\s*[\d*,†‡§]?$/.test(line);
+  }
+
+  function findTitle(lines) {
+    const parts = [];
+    for (const line of lines.slice(0, 40)) {
+      if (!line || line.length < 2) break;
+      if (isJunkLine(line)) continue;
+      if (isLikelyHeading(line)) break;
+      if (line.length > 180) break;
+      if (/@|e-?mail|university|department|institute|college|techniker|corresponding|contributing/i.test(line)) break;
+      if (isAuthorLike(line)) break;
+      parts.push(line);
+      if (parts.join(' ').length > 140) break;
+      if (parts.length >= 6) break;
+    }
+    return parts.join(' ');
+  }
+
+  function findAbstract(lines, title) {
+    const idx = lines.findIndex(
+      (l) => /^\s*abstract\b[:.]?\s*$/i.test(l) || /^\s*abstract\./i.test(l)
+    );
+    if (idx !== -1) {
+      let text = '';
+      for (const line of lines.slice(idx + 1)) {
+        if (text && isLikelyHeading(line)) break;
+        if (line.length > 220) continue;
+        text += ' ' + line;
+      }
+      if (cleanText(text).length > 20) return cleanText(text).slice(0, 3000);
+    }
+
+    const start = title ? lines.indexOf(title) : 0;
+    let text = '';
+    let started = false;
+    for (const line of lines.slice(start + 1)) {
+      if (started && isLikelyHeading(line)) break;
+      if (/^keywords?\b/i.test(line)) continue;
+      if (isJunkLine(line)) continue;
+      if (started) {
+        text += ' ' + line;
+      } else if (line.length >= 60) {
+        started = true;
+        text = line;
+      }
+    }
+    return cleanText(text).length >= 80 ? cleanText(text).slice(0, 3000) : '';
+  }
+
+  function collectSectionsFromLines(lines, title) {
+    const sections = [];
+    let current = null;
+
+    for (const line of lines) {
+      if (isLikelyHeading(line, title)) {
+        const cleaned = cleanHeading(line);
+        if (/^(abstract|summary)\b/i.test(cleaned)) continue;
+        if (!cleaned || /^[^A-Za-z0-9]+$/.test(cleaned)) continue;
+
+        if (current && current.text.trim()) {
+          sections.push(current);
+          current = null;
+        }
+        if (current) {
+          current.heading += ' ' + cleaned;
+        } else {
+          current = {
+            id: '',
+            level: headingLevel(line),
+            heading: cleaned,
+            text: '',
+          };
+        }
+      } else if (current) {
+        current.text = (current.text + ' ' + line).trim();
+      }
+    }
+
+    if (current && current.text.trim()) sections.push(current);
+    return sections;
+  }
+
+  function collectFiguresFromText(lines) {
+    const figures = [];
+    for (const line of lines) {
+      const match = line.match(/^\s*(?:figure|fig\.?)\s*(\d+)[:.\-–—]?\s+(.+)$/i);
+      if (match) {
+        figures.push({
+          index: parseInt(match[1], 10),
+          caption: cleanText(match[2]),
+          alt: '',
+          src: '',
+        });
+      }
+    }
+    return figures.slice(0, 50);
+  }
+
+  function fromText(pages, opts) {
+    const url = (opts && opts.url) || window.location.href;
+    const lines = textLines(pages);
+    const title = findTitle(lines);
+    const sections = collectSectionsFromLines(lines, title);
+
+    return {
+      detected: true,
+      source: 'pdf',
+      url,
+      paper_id: window.PaperStorage
+        ? window.PaperStorage.paperIdForUrl(url)
+        : 'pdf_' + url,
+      detected_at: Date.now(),
+      title,
+      abstract: findAbstract(lines),
+      sections: sections.map((s) => ({
+        id: s.id,
+        level: s.level,
+        heading: s.heading,
+        snippet: truncate(s.text, 300),
+      })),
+      figures: collectFiguresFromText(lines),
+      methods: findSection(sections, METHOD_PATTERNS),
+      conclusion: findSection(sections, CONCLUSION_PATTERNS),
+    };
+  }
+
   function isPaperPage() {
     if (detectSource() === 'arxiv') return true;
 
@@ -258,6 +447,7 @@
 
   window.PaperDetector = {
     detect,
+    fromText,
     isPaperPage,
     logToConsole,
     detectSource,
