@@ -217,6 +217,7 @@
 
   const BLOCKLIST_PATTERNS = [
     /^\s*\d+\s*$/, // bare page numbers
+    /^\s*page\s+\d+\s+of\s+\d+\s*$/i,
     /^arxiv:/i,
     /^\S+@\S+$/, // email
     /^(doi|http|https):/i,
