@@ -294,7 +294,7 @@
     if (!res.ok) {
       throw new Error('Failed to fetch PDF (HTTP ' + res.status + ').');
     }
-    const data = await res.arrayBuffer();
+    const data = new Uint8Array(await res.arrayBuffer());
     await ensureOffscreen();
     const result = await sendToOffscreen({
       type: 'EXTRACT_PDF',

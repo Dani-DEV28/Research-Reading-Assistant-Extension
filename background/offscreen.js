@@ -40,7 +40,13 @@ function pageTextFromItems(items) {
 async function extractPdf(data, url) {
   let task = null;
   try {
-    task = pdfjsLib.getDocument({ data });
+    const bytes =
+      data instanceof Uint8Array
+        ? data
+        : data && data.buffer instanceof ArrayBuffer
+          ? new Uint8Array(data.buffer, data.byteOffset || 0, data.byteLength)
+          : new Uint8Array(data);
+    task = pdfjsLib.getDocument({ data: bytes });
     const doc = await task.promise;
     const pages = [];
     for (let i = 1; i <= doc.numPages; i++) {

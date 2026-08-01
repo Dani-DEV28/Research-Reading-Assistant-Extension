@@ -2,8 +2,6 @@
   'use strict';
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (!sender.tab) return;
-
     switch (message.type) {
       case 'PING':
         sendResponse({
@@ -13,13 +11,17 @@
         break;
 
       case 'DETECT_PAPER':
-        const result = window.PaperDetector.detect();
-        window.PaperDetector.logToConsole(result);
-        sendResponse({ ok: true, data: result });
+        try {
+          const result = window.PaperDetector.detect();
+          window.PaperDetector.logToConsole(result);
+          sendResponse({ ok: true, data: result });
+        } catch (err) {
+          sendResponse({ ok: false, error: 'Detection failed: ' + (err.message || err) });
+        }
         break;
 
       default:
-        sendResponse({ ok: false, error: 'Unknown message type' });
+        return;
     }
     return false;
   });
