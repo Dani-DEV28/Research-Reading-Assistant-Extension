@@ -2,9 +2,10 @@
   "manifest_version": 3,
   "name": "Research Reading Assistant",
   "version": "0.1.0",
-  "description": "Detect and extract research paper structure (title, abstract, sections, figures, methods, conclusion) from web pages.",
+  "description": "Detect and extract research paper structure (title, abstract, sections, figures, methods, conclusion) from web pages and PDFs.",
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "storage"],
+  "host_permissions": ["<all_urls>", "file://*/*"],
   "background": {
     "service_worker": "background/service-worker.js"
   },

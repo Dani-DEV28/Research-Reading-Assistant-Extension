@@ -30,15 +30,28 @@
 
   function buildChecklistItems(paper) {
     const items = [];
+    const norm = (s) =>
+      String(s || '')
+        .replace(/^\s*\d+(?:\.\d+)*[.)\s-]*/, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+    const skip = new Set(
+      [paper.methods && paper.methods.heading, paper.conclusion && paper.conclusion.heading]
+        .map(norm)
+        .filter(Boolean)
+    );
 
     if (paper.abstract) {
       items.push({ key: 'abstract', label: 'Abstract', text: paper.abstract });
     }
 
     (paper.sections || []).forEach((section, i) => {
+      const label = section.heading || 'Section ' + (i + 1);
+      if (skip.has(norm(label)) || /^abstract\b/.test(norm(label))) return;
       items.push({
         key: 'section_' + i,
-        label: section.heading || 'Section ' + (i + 1),
+        label: label,
         text: section.snippet || '',
         meta: section.id ? '#' + section.id : '',
       });
@@ -131,6 +144,10 @@
       checkbox.type = 'checkbox';
       checkbox.className = 'structure-check';
       checkbox.checked = !!progress[item.key];
+      checkbox.setAttribute(
+        'aria-label',
+        item.label + (item.text ? ': ' + truncate(item.text, 120) : '')
+      );
       checkbox.addEventListener('change', async (e) => {
         await window.PaperStorage.setProgress(paper.paper_id, item.key, e.target.checked);
         li.classList.toggle('tracked', e.target.checked);
@@ -283,17 +300,49 @@
     return false;
   }
 
+  function pdfErrorText(res) {
+    switch (res.error) {
+      case 'PDF_FILE_ACCESS':
+        return "PDF detected. Enable 'Allow access to file URLs' for this extension (chrome://extensions > Details) and retry.";
+      case 'PDF_FETCH_FAILED':
+        return 'Could not fetch the PDF' +
+          (res.detail ? ' (' + res.detail + ')' : '') + '.';
+      case 'NOT_A_PDF':
+        return 'The file does not appear to be a PDF.';
+      case 'PDF_PARSE_FAILED':
+        return 'Could not parse the PDF' +
+          (res.detail ? ' (' + res.detail + ')' : '') + '.';
+      default:
+        return 'PDF detection failed.';
+    }
+  }
+
   async function init() {
     const tab = await getActiveTab();
+    const url = tab ? tab.url || '' : '';
+    const isPdf = window.PdfDetect ? window.PdfDetect.looksLikePdf(url) : false;
 
-    if (!tab || !/^https?:/i.test(tab.url || '')) {
-      setStatus('Not supported. Open a paper page (HTTP/HTTPS) and retry.', false);
+    if (!tab || (!/^https?:/i.test(url) && !isPdf)) {
+      setStatus(
+        'Not supported. Open a research paper (HTTP/HTTPS) or a PDF and retry.',
+        false
+      );
       runBtn.disabled = true;
       showEmptyState();
       return;
     }
 
     const cachedLoaded = await loadFromCache(tab);
+
+    if (isPdf) {
+      if (cachedLoaded) {
+        setStatus('PDF detected. Checklist loaded from cache.', true);
+      } else {
+        setStatus('PDF detected. Run detect to build the checklist.');
+      }
+      runBtn.disabled = false;
+      return;
+    }
 
     const ping = await pingTab(tab);
     if (!ping) {
@@ -319,6 +368,29 @@
 
     try {
       const tab = await getActiveTab();
+      if (window.PdfDetect && window.PdfDetect.looksLikePdf(tab.url)) {
+        const res = await window.PdfDetect.detectFromUrl(tab.url);
+        if (res && res.ok) {
+          console.log('[Research Reading Assistant] PDF detection result:', res.data);
+          const saved = await window.PaperStorage.savePaper(res.data);
+          renderStructure(saved);
+          setStatus(
+            'PDF detection complete (' +
+              (res.data.tagged ? 'tagged PDF' : 'untagged PDF, heuristics used') +
+              '): ' +
+              (res.data.sections ? res.data.sections.length : 0) +
+              ' sections, ' +
+              (res.data.figures ? res.data.figures.length : 0) +
+              ' figures' +
+              (res.data.abstract ? ', abstract' : ', no abstract') +
+              '.'
+          );
+        } else {
+          setStatus(res ? pdfErrorText(res) : 'PDF detection returned no data.', false);
+        }
+        return;
+      }
+
       const res = await sendMessage(tab.id, { type: 'DETECT_PAPER' });
       if (res && res.ok) {
         console.log('[Research Reading Assistant] Detection result:', res.data);

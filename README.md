@@ -529,10 +529,18 @@ Research-Read-Assistant-ext/
 │   │                             sections, figures, methods, conclusion)
 │   └── content.js                Content script: handles popup messages
 │
+├── pdf/
+│   ├── parser.js                 PDF structure extraction: reads the PDF's embedded
+│   │                             accessibility tags (getStructTree) when present,
+│   │                             falls back to font/keyword heuristics otherwise
+│   └── pdf-detect.js             Fetch + parse a PDF from the current tab (no redirect)
+│
+├── lib/pdfjs/                    Vendored pdfjs-dist (pdf.min.mjs, pdf.worker.min.mjs)
+│
 ├── popup/
 │   ├── popup.html                Popup UI with RUN DETECT button + structure checklist
 │   ├── popup.css                 Popup styling
-│   └── popup.js                  Popup logic: cache lookup, detection, checklist toggles
+│   └── popup.js                  Popup logic: cache lookup, HTML/PDF detection, checklist toggles
 │
 ├── storage/
 │   └── papers.js                 PaperStorage cache module (save, read, progress, evict)
@@ -645,6 +653,46 @@ any other page becomes `page_` + a stable hash of the URL.
 - arXiv HTML papers (`arxiv.org`, `ar5iv.org`)
 - Academic sites exposing `citation_title` / `citation_abstract` meta tags
 - Generic structured HTML with `article`, `section`, and heading elements
+- PDF files opened in the browser, served over `https://` or opened locally via `file://`
+
+## PDF Detection
+
+The extension distinguishes between an HTML research paper and a PDF, then runs
+`RUN DETECT` accordingly to build the same checklist:
+
+- **HTML pages** use the existing content-script detector (`PaperDetector`), which
+  reads the page's DOM, headings, and meta tags. Nothing is injected.
+- **PDFs** (URL ending in `.pdf`, `data:application/pdf`, or any `file://` URL) are
+  read by the popup directly - no redirect, no custom viewer. The popup fetches the
+  PDF bytes (host permissions) and parses them with the vendored pdf.js.
+
+For PDFs the extraction reads data that is *already in the file*:
+
+- **Tagged PDFs** (e.g., exported from Word, LaTeX, or a publisher): the embedded
+  accessibility structure tree (`getStructTree`) is joined to the page text via Marked
+  Content IDs, and the roles are mapped to the checklist fields - `Title`/`H1`-`H6` →
+  title + sections, `Abstract` → abstract, `Figure`/`Caption`/`alt` → figures, and
+  heading keyword matching → methods/conclusion. The result logs `tagged: true`.
+- **Untagged PDFs**: `getStructTree()` returns `null`, so the parser falls back to
+  font-size and keyword heuristics to reconstruct the same structure (`tagged: false`).
+  Section headings may be numbered ("1 Introduction", "2.1 Methods"); leading section
+  numbers are stripped before keyword matching, while the original text is kept as the
+  heading label. Titles are detected by size on the first page, with PDF metadata
+  (`info.Title`) taking precedence.
+- **Scanned PDFs** (no text layer) yield an empty structure - there is no OCR.
+
+The parser never writes to or modifies the PDF. Accessibility tagging is limited to
+the extension's own popup checklist, where every item carries an `aria-label`
+describing its type (Abstract, Section, Figure, Methods, Conclusion).
+
+### Local (`file://`) PDFs
+
+Fetching a `file://` PDF requires the extension to have file access:
+
+1. Open `chrome://extensions`, find "Research Reading Assistant".
+2. Open **Details** and enable **Allow access to file URLs**.
+
+When access is denied, `RUN DETECT` shows instructions instead of an error.
 
 ## Future Phases
 
