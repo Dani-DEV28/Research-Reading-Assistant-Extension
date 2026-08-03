@@ -2,71 +2,163 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Research Reading Assistant</title>
+    <title>RGuide</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <header class="header">
-      <h1>Research Reading Assistant</h1>
+      <div>
+        <h1>RGuide</h1>
+      </div>
       <p class="status" id="status">Checking page...</p>
     </header>
 
     <main class="content">
-      <button id="run-detect" class="primary" disabled>RUN DETECT</button>
-      <button id="read" class="secondary" disabled>READ</button>
-
-      <section class="structure">
-        <h2>Paper structure</h2>
-        <p id="structure-empty" class="empty">
-          No cached data for this page yet. Click RUN DETECT to extract it.
+      <section class="panel detect-panel" id="detect-panel">
+        <p class="paper-kicker" id="paper-source">Current page</p>
+        <h2 id="paper-title">No paper loaded yet</h2>
+        <p class="summary" id="paper-summary">
+          Open a research paper page, then detect its structure to start a reading plan.
         </p>
-        <ul id="structure-list" class="structure-list" hidden></ul>
+        <button id="run-detect" class="primary" disabled>Detect paper</button>
       </section>
 
-      <section class="questions">
-        <div class="section-header">
-          <h2>Review questions</h2>
-          <button id="add-question" class="small-button" disabled>Add more question</button>
+      <section class="panel setup-panel" id="setup-panel" hidden>
+        <div class="step-heading">
+          <span class="step-number">1</span>
+          <div>
+            <h2>Set your purpose</h2>
+            <p>Choose what you want this reading session to help with.</p>
+          </div>
         </div>
-        <p id="questions-empty" class="empty" hidden>
-          No questions recorded. Use READ to add your reading questions.
+
+        <div class="goal-grid" id="goal-grid" aria-label="Reading goals">
+          <button type="button" class="goal-chip" data-goal="quick">
+            Quick overview
+          </button>
+          <button type="button" class="goal-chip" data-goal="methods">
+            Understand methods
+          </button>
+          <button type="button" class="goal-chip" data-goal="results">
+            Evaluate results
+          </button>
+          <button type="button" class="goal-chip" data-goal="project">
+            Connect to my work
+          </button>
+        </div>
+
+        <label class="field-label" for="reading-goal">
+          Reading goal
+        </label>
+        <textarea
+          id="reading-goal"
+          rows="3"
+          placeholder="e.g. I want to understand whether this method is useful for my project."
+        ></textarea>
+
+        <div class="step-heading path-heading">
+          <span class="step-number">2</span>
+          <div>
+            <h2>Build your path</h2>
+            <p>Keep the useful sections and reorder them before reading.</p>
+          </div>
+        </div>
+
+        <div class="path-mode" aria-label="Reading path options">
+          <button type="button" class="mode-button active" id="suggested-flow">
+            Suggested flow
+          </button>
+          <button type="button" class="mode-button" id="custom-flow">
+            Draft from description
+          </button>
+        </div>
+
+        <section class="workflow-box" id="workflow-box" hidden>
+          <label class="field-label" for="workflow-input">
+            Describe how you want to read
+          </label>
+          <textarea
+            id="workflow-input"
+            rows="3"
+            placeholder="e.g. I want to skim the big picture first, then focus on the method and results."
+          ></textarea>
+          <p class="helper-text">
+            This draft uses local keyword matching for now, so edit the steps after it creates a path.
+          </p>
+          <button type="button" id="generate-workflow" class="secondary">
+            Draft reading path
+          </button>
+        </section>
+
+        <ol id="pre-read-list" class="pre-read-list"></ol>
+
+        <div class="add-section-row">
+          <select id="add-section-select" aria-label="Add another section">
+            <option value="">Add another section...</option>
+          </select>
+          <button type="button" id="add-section" class="secondary compact">
+            Add
+          </button>
+        </div>
+
+        <label class="focus-toggle">
+          <input type="checkbox" id="focus-mode" checked />
+          <span>
+            Focus mode: unlock one section at a time
+          </span>
+        </label>
+
+        <button id="start-review" class="primary" disabled>Open reading guide</button>
+      </section>
+
+      <section class="panel reading-panel" id="reading-panel" hidden>
+        <button type="button" id="toggle-compact" class="compact-toggle">
+          Compact view
+        </button>
+
+        <div class="progress-top">
+          <div>
+            <p class="eyebrow">Current session</p>
+            <h2 id="reading-title">Guided reading</h2>
+          </div>
+          <span id="reading-count" class="count-pill">0 / 0 · 0%</span>
+        </div>
+
+        <div class="progress-track">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+
+        <ol id="reading-steps" class="reading-steps"></ol>
+
+        <section class="reflection-card" id="reflection-card">
+          <p class="paper-kicker" id="current-section-label">Current section</p>
+          <h3 id="reflection-question">What did you learn?</h3>
+          <textarea
+            id="reflection-answer"
+            rows="4"
+            placeholder="Write your reflection before unlocking the next step."
+          ></textarea>
+          <div class="reflection-actions">
+            <button type="button" id="previous-step" class="secondary compact">
+              Back
+            </button>
+            <button type="button" id="next-step" class="primary compact">
+              Save and unlock next
+            </button>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel complete-panel" id="complete-panel" hidden>
+        <p class="eyebrow">Research memory</p>
+        <h2>Review saved</h2>
+        <p class="summary">
+          Your notes are saved locally with this paper, based on what you wrote while reading.
         </p>
-        <ul id="questions-list" class="questions-list" hidden></ul>
+        <dl class="review-summary" id="review-summary"></dl>
+        <button type="button" id="edit-plan" class="secondary">Edit reading plan</button>
       </section>
     </main>
-
-    <footer class="footer">
-      <p>Results are logged to the page console (F12 &gt; Console).</p>
-    </footer>
-
-    <div class="modal-backdrop" id="question-modal" hidden>
-      <div class="modal">
-        <h2>Record your reading questions</h2>
-        <p class="modal-hint">What do you want to ask about this paper?</p>
-        <textarea
-          id="question-input"
-          rows="3"
-          placeholder="e.g. What problem does this paper claim to solve?"
-        ></textarea>
-        <ul id="question-list" class="question-list" hidden></ul>
-        <div class="modal-actions">
-          <button id="question-more" class="ghost">Add more question</button>
-          <button id="question-done" class="primary">Done</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal-backdrop" id="answer-modal" hidden>
-      <div class="modal">
-        <h2>Answer your questions</h2>
-        <p class="modal-hint">Record your reflections after reading the paper.</p>
-        <ul id="answer-list" class="answer-list"></ul>
-        <div class="modal-actions">
-          <button id="answer-cancel" class="ghost">Cancel</button>
-          <button id="answer-save" class="primary">Save answers</button>
-        </div>
-      </div>
-    </div>
 
     <script src="../storage/papers.js"></script>
     <script src="popup.js"></script>

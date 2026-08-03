@@ -92,6 +92,14 @@
     }
   }
 
+  async function setReviewPlan(paperId, reviewPlan) {
+    const map = await readAll();
+    if (map[paperId]) {
+      map[paperId].review_plan = reviewPlan;
+      await writeAll(map);
+    }
+  }
+
   async function addReviewQuestion(paperId, question) {
     const map = await readAll();
     if (map[paperId]) {
@@ -142,6 +150,7 @@
     listPapers,
     getPaper,
     setProgress,
+    setReviewPlan,
     addReviewQuestion,
     removeReviewQuestion,
     saveAnswers,

@@ -15,9 +15,13 @@
     abstract: [
       'meta[name="citation_abstract"]',
       'blockquote.abstract',
+      '.ltx_abstract',
       '.ltx_abstract .abstract',
       '#abstract',
       '.abstract',
+      'section.abstract',
+      'section[id*="abstract" i]',
+      'section[class*="abstract" i]',
       'section[aria-label*="abstract" i]',
       'meta[property="og:description"]',
     ],
@@ -99,6 +103,15 @@
       }
       if (value) return value.replace(/^abstract:?\s*/i, '');
     }
+
+    const heading = Array.from(document.querySelectorAll('h1, h2, h3, h4, .ltx_title_abstract'))
+      .find((el) => /^abstract\.?$/i.test(cleanText(el.textContent)));
+    const container = heading && (heading.closest('section') || heading.parentElement);
+    if (container) {
+      const value = cleanText(container.textContent).replace(/^abstract\.?\s*/i, '');
+      if (value) return value;
+    }
+
     return '';
   }
 

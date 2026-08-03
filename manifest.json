@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Research Reading Assistant",
+  "name": "RGuide",
   "version": "0.1.0",
   "description": "Detect and extract research paper structure (title, abstract, sections, figures, methods, conclusion) from web pages.",
   "minimum_chrome_version": "116",
@@ -10,7 +10,7 @@
   },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Research Reading Assistant"
+    "default_title": "RGuide"
   },
   "content_scripts": [
     {
